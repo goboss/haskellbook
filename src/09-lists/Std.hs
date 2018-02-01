@@ -7,7 +7,7 @@ myOr [] = False
 myOr (b:bs) = b || myOr bs
 
 -- Exercise 2
--- myAny returns True if a -> Bool applied to any of the values 
+-- myAny returns True if a -> Bool applied to any of the values
 -- in the list returns True.
 myAny :: (a -> Bool) -> [a] -> Bool
 myAny f as = myOr $ map f as
@@ -27,7 +27,7 @@ myReverse :: [a] -> [a]
 myReverse [] = []
 myReverse xs = accum xs []
   where accum [] acc     = acc
-        accum (y:ys) acc = accum ys (y : acc) 
+        accum (y:ys) acc = accum ys (y : acc)
 
 -- Exercise 5
 -- squish flattens a list of lists into a list.
@@ -47,7 +47,7 @@ squishAgain :: [[a]] -> [a]
 squishAgain = squishMap id
 
 -- Exercise 8
--- myMaximumBy takes a comparison function and a list and returns the greatest element 
+-- myMaximumBy takes a comparison function and a list and returns the greatest element
 -- of the list based on the last value that the comparison returned GT for.
 myBetterBy :: Ordering -> (a -> a -> Ordering) -> [a] -> a
 myBetterBy _ _ [] = error "empty list"
@@ -59,13 +59,13 @@ myMaximumBy :: (a -> a -> Ordering) -> [a] -> a
 myMaximumBy = myBetterBy GT
 
 -- Exercise 9
--- myMinimumBy takes a comparison function and a list and returns the least element 
+-- myMinimumBy takes a comparison function and a list and returns the least element
 -- of the list based on the last value that the comparison returned LT for.
 myMinimumBy :: (a -> a -> Ordering) -> [a] -> a
 myMinimumBy = myBetterBy LT
 
 -- Exercise 10
--- Using the myMinimumBy and myMaximumBy functions, write your own 
+-- Using the myMinimumBy and myMaximumBy functions, write your own
 -- versions of maximum and minimum.
 myMaximum :: (Ord a) => [a] -> a
 myMaximum = myMaximumBy compare
