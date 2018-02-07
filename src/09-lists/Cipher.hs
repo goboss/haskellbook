@@ -18,6 +18,12 @@ caesar n = map (shift n)
 unCaesar :: Int -> String -> String
 unCaesar = caesar . negate
 
+caesarIO :: Int -> IO String
+caesarIO n = do
+  putStrLn "Enter your message:"
+  msg <- getLine
+  return $ caesar n msg
+
 -- Exercise
 -- Implement Vigenere cipher
 type Keyword = String
@@ -34,4 +40,20 @@ vigenere key str = go lowerKey str ""
 unVigenere :: Keyword -> String -> String
 unVigenere key = vigenere unkey
   where unkey = map ((\c -> shift (ord 'a' - ord c) 'a') . toLower) key
+
+vigenereIO :: IO String
+vigenereIO = do
+  putStrLn "Enter the keyword:"
+  keyword <- getLine
+  putStrLn "Enter your message:"
+  msg <- getLine
+  return $ vigenere keyword msg
+
+unVigenereIO :: IO String
+unVigenereIO = do
+  putStrLn "Enter the keyword:"
+  keyword <- getLine
+  putStrLn "Enter the cipher:"
+  cipher <- getLine
+  return $ unVigenere keyword cipher
 
