@@ -2,7 +2,7 @@ module Puzzle where
 
 import Data.List (intersperse)
 
-data Puzzle = Puzzle String [Maybe Char] [Char] Int
+data Puzzle = Puzzle String [Maybe Char] [Char] Int deriving Eq
 
 instance Show Puzzle where
   show (Puzzle _ discovered guessed attempts) =

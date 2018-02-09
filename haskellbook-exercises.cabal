@@ -11,7 +11,9 @@ extra-source-files:   README.md, LICENSE
 cabal-version:        >=1.10
 
 library
-  exposed-modules:    Exercises.Recursion.Main
+  exposed-modules:    Exercises.Algebraic.Language
+                    , Exercises.Lists.Cipher
+                    , Exercises.Recursion.Main
                     , Exercises.Recursion.WordNumber
   build-depends:      base >=4.10 && <5
   hs-source-dirs:     src
@@ -23,6 +25,9 @@ test-suite unit-tests
   type:               exitcode-stdio-1.0
   main-is:            Spec.hs
   other-modules:      Exercises.Recursion.WordNumberSpec
+                    , Exercises.Lists.CipherSpec
+                    , Exercises.Testing.IdempotenceSpec
+                    , Exercises.Testing.QuickCheckSpec
   hs-source-dirs:     test
   default-language:   Haskell2010
   build-depends:      base >=4.7 && <5
