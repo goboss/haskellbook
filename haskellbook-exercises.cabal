@@ -13,9 +13,13 @@ cabal-version:        >=1.10
 library
   exposed-modules:    Exercises.Algebraic.Language
                     , Exercises.Lists.Cipher
+                    , Exercises.Monoid.Laws
+                    , Exercises.Monoid.Main
+                    , Exercises.Monoid.Optional
                     , Exercises.Recursion.Main
                     , Exercises.Recursion.WordNumber
   build-depends:      base >=4.10 && <5
+                    , QuickCheck
   hs-source-dirs:     src
   ghc-options:        -Wall -fwarn-tabs
   default-language:   Haskell2010
