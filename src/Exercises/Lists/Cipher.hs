@@ -7,8 +7,8 @@ shift n c
   | isAlpha c = chr $ mod (ord c - minChar c + n) (maxChar c - minChar c + 1) + minChar c
   | otherwise  = c
   where
-    maxChar c = ord $ if (isUpper c) then 'Z' else 'z'
-    minChar c = ord $ if (isUpper c) then 'A' else 'a'
+    maxChar x = ord $ if (isUpper x) then 'Z' else 'z'
+    minChar x = ord $ if (isUpper x) then 'A' else 'a'
 
 -- Exercise
 -- Implement Caesar cipher
