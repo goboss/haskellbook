@@ -4,6 +4,8 @@ module Main where
 
 import Control.Monad (replicateM)
 import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Reader
+
 import qualified Data.ByteString.Char8 as BC
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import qualified Data.Text.Lazy as TL
@@ -80,10 +82,10 @@ handleGet resp found notFound =
           where tbs :: TL.Text
                 tbs = TL.fromStrict (decodeUtf8 bs)
 
-app :: R.Connection
-    -> ScottyM ()
-app rConn = do
-  get "/" $ do
+app :: ReaderT R.Connection ScottyM ()
+app = do
+  rConn <- ask
+  lift $ get "/" $ do
     uri <- param "uri"
     let parsedUri :: Maybe URI
         parsedUri = parseURI (TL.unpack uri)
@@ -101,7 +103,7 @@ app rConn = do
                   resp <- liftIO (saveURI rConn shorty uri)
                   html (shortyCreated resp (BC.unpack shorty))
       Nothing -> text (shortyAintUri uri)
-  get "/:short" $ do
+  lift $ get "/:short" $ do
     short <- param "short"
     resp <- liftIO (getURI rConn short)
     handleGet resp found notFound
@@ -112,4 +114,4 @@ app rConn = do
 main :: IO ()
 main = do
   rConn <- R.connect R.defaultConnectInfo
-  scotty 3000 (app rConn)
+  scotty 3000 (runReaderT app rConn)
