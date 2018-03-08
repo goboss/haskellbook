@@ -1,11 +1,11 @@
-module Exercises.Parsers.Main where
+module Exercises.Parsers.SemVer where
 
-import Control.Applicative
-import Data.Monoid ((<>))
 import Text.Trifecta
+import Control.Applicative ((<|>))
+import Data.Monoid ((<>))
 
--- Exercise 1
--- Write a parser for semantic versions as defined by http://semver.org/
+  -- Exercise 1
+  -- Write a parser for semantic versions as defined by http://semver.org/
 
 data NumberOrString =
     NOSS String
@@ -66,56 +66,3 @@ instance Ord SemVer where
     <> compare minor minor'
     <> compare patch patch'
     <> compare rea rea'
-
--- Exercise 2
--- Write a parser for positive integer values. Don’t reuse the preexisting
--- digit or integer functions, but you can use the rest of the libraries
--- we’ve shown you so far.
-
-parseDigit :: Parser Char
-parseDigit = oneOf "0123456789"
-
-base10Integer :: Parser Integer
-base10Integer = read <$> some parseDigit
-
--- Exercise 3
---  Extend the parser you wrote to handle negative and positive integers.
-
-base10Integer' :: Parser Integer
-base10Integer' =
-  optional (char '-') >>= \sig ->
-    case sig of
-      Just _  -> negate <$> base10Integer
-      Nothing -> base10Integer
-
--- Exercise 4
--- Write a parser for US/Canada phone numbers with varying formats.
-
-type NumberingPlanArea = Int
-type Exchange = Int
-type LineNumber = Int
-
-data PhoneNumber =
-  PhoneNumber NumberingPlanArea Exchange LineNumber
-  deriving (Eq, Show)
-
-parsePhoneTrunk :: Parser (Maybe String)
-parsePhoneTrunk = optional (string "1-")
-
-parsePhoneSegment :: Int -> Parser Int
-parsePhoneSegment n = read <$> count n digit
-
-parsePhoneSep :: Parser (Maybe Char)
-parsePhoneSep = optional (oneOf " -")
-
-parsePhone :: Parser PhoneNumber
-parsePhone = do
-  _   <- parsePhoneTrunk
-  _   <- optional (char '(')
-  npa <- parsePhoneSegment 3
-  _   <- optional (char ')')
-  _   <- parsePhoneSep
-  exc <- parsePhoneSegment 3
-  _   <- parsePhoneSep
-  lin <- parsePhoneSegment 4
-  return (PhoneNumber npa exc lin)
