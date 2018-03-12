@@ -1,7 +1,12 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 module Exercises.Parsers.Log where
 
-import Text.Trifecta
-import Control.Applicative (liftA2, (<|>))
+import           Text.Trifecta
+import           Text.RawString.QQ
+import           Control.Applicative (liftA2, (<|>))
+import           Data.Map (Map)
+import qualified Data.Map as M
 
 -- COMMENTS
 type Comment = String
@@ -81,4 +86,55 @@ type Activity = String
 
 activity :: Parser Activity
 activity =
-  manyTill (noneOf "\n") (try comment <|> string "\n" <|> (eof >> string ""))
+  manyTill anyChar
+    (try (comment *> string "\n") <|> string "\n" <|> eof *> string "")
+
+skipToNextLine :: Parser ()
+skipToNextLine = skipMany (try comment <|> string "\n")
+
+data Entry = Entry Time Activity deriving (Show, Eq)
+
+entry :: Parser Entry
+entry = liftA2 Entry time (spaces *> activity)
+
+dayEntries :: Parser (Date, [Entry])
+dayEntries = liftA2 (,) (date <* skipToNextLine) (many entry)
+
+type Log = Map Date [Entry]
+
+logParser :: Parser Log
+logParser = M.fromList <$> allEntries
+  where allEntries = many (skipToNextLine *> dayEntries <* skipToNextLine)
+
+exampleLog :: String
+exampleLog = [r|
+-- wheee a comment
+
+# 2025-02-05
+08:00 Breakfast
+09:00 Sanitizing moisture collector
+11:00 Exercising in high-grav gym
+12:00 Lunch
+13:00 Programming
+17:00 Commuting home in rover
+17:30 R&R
+19:00 Dinner
+21:00 Shower
+21:15 Read
+22:00 Sleep
+
+# 2025-02-07 -- dates not nececessarily sequential
+08:00 Breakfast -- should I try skippin bfast?
+09:00 Bumped head, passed out
+13:36 Wake up, headache
+13:37 Go to medbay
+13:40 Patch self up
+13:45 Commute home for rest
+14:15 Read
+21:00 Dinner
+21:15 Read
+22:00 Sleep
+|]
+
+instance Ord Date where
+  compare (Date y m d) (Date y' m' d') = compare [y, m, d] [y', m', d']

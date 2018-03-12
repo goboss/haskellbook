@@ -19,10 +19,12 @@ library
                     , Exercises.Recursion.Main
                     , Exercises.Recursion.WordNumber
   build-depends:      base >=4.10 && <5
+                    , containers
                     , QuickCheck
                     , checkers
                     , parsers
                     , random
+                    , raw-strings-qq
                     , trifecta
   hs-source-dirs:     src
   ghc-options:        -Wall -fwarn-tabs
