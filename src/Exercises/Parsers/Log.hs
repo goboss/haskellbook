@@ -5,8 +5,10 @@ module Exercises.Parsers.Log where
 import           Text.Trifecta
 import           Text.RawString.QQ
 import           Control.Applicative (liftA2, (<|>))
-import           Data.Map (Map)
-import qualified Data.Map as M
+import           Data.Maybe (maybe)
+import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as M
+import qualified Data.List as L (sort)
 
 -- COMMENTS
 type Comment = String
@@ -46,7 +48,9 @@ date = do
   day   <- decimal
   case validDate year month day of
     Just valid -> return valid
-    Nothing    -> fail "Not a valid date" <?> "should be between 1 and 12"
+    Nothing    ->
+      fail "Not a valid date" <?>
+           "month should be between 1 and 12 and day between 1 and 31"
 
 -- TIME
 type Hour = Integer
@@ -92,19 +96,41 @@ activity =
 skipToNextLine :: Parser ()
 skipToNextLine = skipMany (try comment <|> string "\n")
 
-data Entry = Entry Time Activity deriving (Show, Eq)
+data Entry = Entry Date Time Activity deriving (Show, Eq)
 
-entry :: Parser Entry
-entry = liftA2 Entry time (spaces *> activity)
+entry :: Date -> Parser Entry
+entry d = liftA2 (Entry d) time (spaces *> activity)
 
-dayEntries :: Parser (Date, [Entry])
-dayEntries = liftA2 (,) (date <* skipToNextLine) (many entry)
+dayEntries :: Parser [Entry]
+dayEntries = (date <* skipToNextLine) >>= \d -> (many (entry d))
 
-type Log = Map Date [Entry]
+type Log = [Entry]
 
 logParser :: Parser Log
-logParser = M.fromList <$> allEntries
-  where allEntries = many (skipToNextLine *> dayEntries <* skipToNextLine)
+logParser = concat <$> many (skipToNextLine *> dayEntries <* skipToNextLine)
+
+type Minutes = Integer
+
+activityTime :: Log -> Map Activity Minutes
+activityTime l = foldr addMinutes M.empty (zip history (drop 1 history))
+  where history :: [Entry]
+        history = L.sort l
+        addMinutes :: (Entry, Entry) -> Map Activity Minutes -> Map Activity Minutes
+        addMinutes (e1, e2) acc =
+          M.alter (updateMinutes e1 e2) (key e1) acc
+        updateMinutes :: Entry -> Entry -> Maybe Minutes -> Maybe Minutes
+        updateMinutes e1 e2 =
+          Just . maybe (minutes e1 e2) (\cnt -> cnt + minutes e1 e2)
+        key :: Entry -> Activity
+        key (Entry _ _ a) = a
+        minutes :: Entry -> Entry -> Minutes
+        minutes (Entry (Date y m d) (Time h mm) _)
+                (Entry (Date y' m' d') (Time h' mm') _) =
+          (y' - y) * (256 * 24 * 60) + -- I know this is not always right
+          (m' - m) * (30 * 24 * 60) +
+          (d' - d) * (24 * 60) +
+          (h' - h) * 60 +
+          (mm' - mm)
 
 exampleLog :: String
 exampleLog = [r|
@@ -136,5 +162,18 @@ exampleLog = [r|
 22:00 Sleep
 |]
 
+main :: IO ()
+main = do
+  let Success(myLog) = parseString logParser mempty exampleLog
+  print $ activityTime myLog
+
 instance Ord Date where
   compare (Date y m d) (Date y' m' d') = compare [y, m, d] [y', m', d']
+
+instance Ord Time where
+  compare (Time h m) (Time h' m') = compare [h, m] [h', m']
+
+instance Ord Entry where
+  compare (Entry d t _) (Entry d' t' _) =
+    let compD = compare d d'
+    in if compD == EQ then compare t t' else compD
