@@ -8,7 +8,7 @@ import           Control.Applicative (liftA2, (<|>))
 import           Data.Maybe (maybe)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
-import qualified Data.List as L (sort)
+import qualified Data.List as L (sort, nubBy)
 
 -- COMMENTS
 type Comment = String
@@ -131,6 +131,15 @@ activityTime l = foldr addMinutes M.empty (zip history (drop 1 history))
           (d' - d) * (24 * 60) +
           (h' - h) * 60 +
           (mm' - mm)
+
+avgDailyActivityTime :: Log -> Map Activity Minutes
+avgDailyActivityTime l = M.mapWithKey avgTime (activityTime l)
+  where avgTime :: Activity -> Minutes -> Minutes
+        avgTime a m = m `div` cntDays a
+        cntDays :: Activity -> Integer
+        cntDays a = fromIntegral $ length $
+          L.nubBy (\(Entry d _ _) (Entry d' _ _) -> d == d')
+            (filter (\(Entry _ _ a') -> a == a') l)
 
 exampleLog :: String
 exampleLog = [r|
