@@ -97,6 +97,9 @@ splitBits width size x = go size (width * (size - 1))
           | otherwise       = []
         mask = (2 ^ width) - 1
 
+toIP6 :: IPAddress -> IPAddress6
+toIP6 (IPAddress w32) = IPAddress6 0 (fromIntegral w32) 
+
 instance Show IPAddress where
   show (IPAddress w) =
     concat (intersperse "." (map show bits))
