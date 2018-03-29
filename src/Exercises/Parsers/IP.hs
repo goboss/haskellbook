@@ -90,6 +90,7 @@ parserIP6Integer = fmap toIntegerIP6 parserIP6
 -- Remove the derived Show instances from the IPAddress/IPAddress6 types,
 -- and write your own Show instance for each type that renders
 -- in the typical textual format appropriate to each.
+
 splitBits :: (Bits a, Num a) => Int -> Int -> a -> [a]
 splitBits width size x = go size (width * (size - 1))
   where go s l
@@ -97,8 +98,11 @@ splitBits width size x = go size (width * (size - 1))
           | otherwise       = []
         mask = (2 ^ width) - 1
 
+-- Exercise
+-- Write a function that converts between IPAddress and IPAddress6.
+
 toIP6 :: IPAddress -> IPAddress6
-toIP6 (IPAddress w32) = IPAddress6 0 (fromIntegral w32) 
+toIP6 (IPAddress w32) = IPAddress6 0 (fromIntegral w32)
 
 instance Show IPAddress where
   show (IPAddress w) =
