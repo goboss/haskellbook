@@ -1,28 +1,40 @@
 module Exercises.Parsers.DOT where
 
 import Data.Monoid ((<>))
-import Control.Applicative ((<|>))
+import Control.Applicative ((<|>), liftA2)
 import Text.Trifecta
 
 -- Exercise
--- Write a parser for the DOT language 14 that Graphviz uses to
+-- Write a parser for the DOT language that Graphviz uses to
 -- express graphs in plain-text (http://www.graphviz.org/doc/info/lang.html).
 
-data GraphType = Graph | Digraph deriving Show
+data GraphType = Graph | Digraph | Subgraph deriving Show
 type GraphId = String
+
 type Attribute = (GraphId, GraphId)
-data Node = Node GraphId (Maybe Port) [Attribute] deriving Show
+
 data Compass = N | NE | E | SE | S | SW | W | NW | C | None deriving Show
 type Port = Either Compass (GraphId, (Maybe Compass))
+
+type NodeId = (GraphId, Maybe Port)
+
+data Node = Node NodeId [Attribute] deriving Show
+
+data EdgeRHS = Directed NodeId | Undirected NodeId deriving Show
+data Edge = Edge NodeId [EdgeRHS] [Attribute] deriving Show
+
+type Assign = (GraphId, GraphId)
 
 graphType :: Parser GraphType
 graphType =
   fmap (const Graph) (string "graph")
   <|>
   fmap (const Digraph) (string "digraph")
+  <|>
+  fmap (const Subgraph) (string "subgraph")
 
 graphId :: Parser GraphId
-graphId = stringId <|> numeralId <|> quotedId <|> htmlId
+graphId = token (stringId <|> numeralId <|> quotedId <|> htmlId)
   where stringId :: Parser GraphId
         stringId =
           let beginning = char '_' <|> letter
@@ -80,11 +92,46 @@ port = fmap Left (try left) <|> fmap Right right
           return (i, c)
         sep = token (char ':')
 
+nodeId :: Parser NodeId
+nodeId = token (liftA2 (,) graphId (optional port))
+
 node :: Parser Node
 node = do
-  gi <- token graphId
-  po <- optional (token port)
+  ni <- nodeId
   as <- optional attrList
   case as of
-    Just a  -> return (Node gi po a)
-    Nothing -> return (Node gi po [])
+    Just a  -> return (Node ni a)
+    Nothing -> return (Node ni [])
+
+edgeRHS :: Parser EdgeRHS
+edgeRHS =
+  fmap Directed (token (string "->") *> nodeId)
+  <|>
+  fmap Undirected (token (string "--") *> nodeId)
+
+edge :: Parser Edge
+edge = do
+  eid <- nodeId
+  rhs <- many edgeRHS
+  att <- optional attrList
+  case att of
+    Just a  -> return (Edge eid rhs a)
+    Nothing -> return (Edge eid rhs [])
+
+assign :: Parser Assign
+assign = token (liftA2 (,) graphId (token (char '=') *> graphId))
+
+strict :: Parser ()
+strict = token (optional (string "strict")) *> return ()
+
+comment :: Parser String
+comment =
+  let
+    end :: Parser Char
+    end = char '\n' <|> (eof >> return '\n')
+    single :: Parser String
+    single = (string "//" <|> string "#") *> manyTill anyChar (try end)
+    multi :: Parser String
+    multi = string "/*" *> manyTill anyChar (try (string "*/"))
+  in
+    single <|> multi
