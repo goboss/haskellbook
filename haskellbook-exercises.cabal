@@ -25,6 +25,7 @@ library
                     , parsers
                     , random
                     , raw-strings-qq
+                    , transformers
                     , trifecta
   hs-source-dirs:     src
   ghc-options:        -Wall -fwarn-tabs
