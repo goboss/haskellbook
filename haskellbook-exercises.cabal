@@ -25,6 +25,8 @@ library
                     , parsers
                     , random
                     , raw-strings-qq
+                    , scotty
+                    , text
                     , transformers
                     , trifecta
   hs-source-dirs:     src
