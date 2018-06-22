@@ -1,10 +1,10 @@
 module Exercises.Transformers.Morra where
 
 import qualified Data.Map as M
-import           Data.List (concat, intersperse)
+import           Data.List (intercalate)
 import           Data.Foldable (maximumBy)
 import           Control.Applicative (liftA2)
-import           Control.Monad (mfilter)
+import           Control.Monad (mfilter, when)
 import           Control.Monad.Trans.State
 import           Control.Monad.Trans.Class
 import           Control.Monad.IO.Class
@@ -109,15 +109,15 @@ updateState old winners =
 
 printScore :: Int -> [Player] -> GameState -> IO ()
 printScore count winners gameState =
-  let winnerDesc       = concat (intersperse ", " winners)
-      scoreDesc (p, s) = (show p) ++ " -> " ++ (show s)
+  let winnerDesc       = intercalate ", " winners
+      scoreDesc (p, s) = show p ++ " -> " ++ show s
       stateDesc        =
-        concat (intersperse ", " $ map scoreDesc (M.toList gameState))
+        intercalate ", " (map scoreDesc (M.toList gameState))
   in
     putStrLn "\n============================================" >>
     putStrLn ("All hands show: " ++ show count) >>
     putStrLn (
-      if (null winners) then "Nobody scored this turn!"
+      if null winners then "Nobody scored this turn!"
       else "Scored this turn: " ++ winnerDesc
     ) >>
     putStrLn ("SCORE: " ++ stateDesc) >>
@@ -133,7 +133,7 @@ getRetry = do
             case c of
               'y' -> return (Just True)
               'n' -> return (Just False)
-              _   -> return (Nothing)
+              _   -> return Nothing
 
 playGame :: StateT GameState IO ()
 playGame = do
@@ -142,21 +142,19 @@ playGame = do
   let count = countHands turn
       winners = findWinners turn count
       newState = updateState gameState winners
-  put (newState)
+  put newState
   liftIO (printScore count winners newState)
-  retry <- lift (getRetry)
-  case retry of
-    True  -> playGame
-    False -> return ()
+  retry <- lift getRetry
+  when retry playGame
 
 printWinner :: GameState -> IO ()
 printWinner gameState = do
-  let winner =  maximumBy (\(_,s1) (_,s2) -> compare s1 s2) (M.toList gameState)
+  let (winner, score) =  maximumBy (\(_,s1) (_,s2) -> compare s1 s2) (M.toList gameState)
   putStrLn (
     "Aaaaaand the WINNER is... " ++
-    fst winner ++
+    winner ++
     " with a score of " ++
-    show (snd winner))
+    show score)
 
 main :: IO ()
 main = do
