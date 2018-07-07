@@ -4,11 +4,12 @@ import qualified Data.Map as M
 import           Data.List (intercalate)
 import           Data.Foldable (maximumBy)
 import           Control.Applicative (liftA2)
-import           Control.Monad (mfilter, when)
+import           Control.Monad (mfilter, when, replicateM_)
 import           Control.Monad.Trans.State
 import           Control.Monad.Trans.Class
 import           Control.Monad.IO.Class
 import           System.Random (getStdRandom, randomR)
+import           System.Console.Terminal.Size (size, height)
 import           Text.Read (readMaybe)
 
 type Player = String
@@ -21,6 +22,8 @@ type Move = (Hand, Guess)
 type Turn = M.Map Player Move
 
 type GameState = M.Map Player Score
+
+data Mode = Singleplayer | Multiplayer deriving Eq
 
 cpuPlayer :: Player
 cpuPlayer = "#Computer"
@@ -57,6 +60,20 @@ insist msg io =
         putStr msg
         insist msg io
 
+
+readMode :: Char -> Maybe Mode
+readMode 's' = Just Singleplayer
+readMode 'm' = Just Multiplayer
+readMode _   = Nothing
+
+getMode :: IO Mode
+getMode = do
+  putStrLn "Main menu: "
+  putStrLn "s: singleplayer"
+  putStrLn "m: multiplayer"
+  let mode = fmap readMode getChar
+  insist "Incorrect mode (choose one of: s, m): " mode
+
 getPlayer :: IO Player
 getPlayer = do
   putStrLn "Player name: "
@@ -77,6 +94,7 @@ getGuess = do
 
 getPlayerMove :: Player -> IO Move
 getPlayerMove player = do
+  printInterstitial
   putStrLn ("Make your move " ++ player ++ "!")
   hand  <- getHand
   guess <- getGuess
@@ -147,6 +165,13 @@ playGame = do
   retry <- lift getRetry
   when retry playGame
 
+printInterstitial :: IO ()
+printInterstitial = do
+  maybeWindow <- size
+  let h = maybe (80 :: Int) height maybeWindow
+  replicateM_ h (putStrLn ".")
+  return ()
+
 printWinner :: GameState -> IO ()
 printWinner gameState = do
   let (winner, score) =  maximumBy (\(_,s1) (_,s2) -> compare s1 s2) (M.toList gameState)
@@ -158,7 +183,14 @@ printWinner gameState = do
 
 main :: IO ()
 main = do
-  player <- getPlayer
-  let initialState = M.fromList [(player, 0), (cpuPlayer, 0)]
+  mode <- getMode
+  putStrLn ""
+
+  p1 <- getPlayer
+  p2 <- if mode == Singleplayer then return cpuPlayer else getPlayer
+  
+  let initialState = M.fromList [(p1, 0), (p2, 0)]
   (_, result) <- runStateT playGame initialState
+  
+  putStrLn ""
   printWinner result

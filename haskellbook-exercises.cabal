@@ -26,6 +26,7 @@ library
                     , random
                     , raw-strings-qq
                     , scotty
+                    , terminal-size
                     , text
                     , transformers
                     , trifecta
