@@ -17,11 +17,16 @@ type Guess = Int
 type Score = Int
 data Hand = Zero | One | Two | Three | Four | Five
 
+data PlayerState = PlayerState
+  { getScore :: Score
+  , getHistory :: [Hand]
+  }
+
 type Move = (Hand, Guess)
 
 type Turn = M.Map Player Move
 
-type GameState = M.Map Player Score
+type GameState = M.Map Player PlayerState
 
 data Mode = Singleplayer | Multiplayer deriving Eq
 
@@ -65,6 +70,9 @@ readMode :: Char -> Maybe Mode
 readMode 's' = Just Singleplayer
 readMode 'm' = Just Multiplayer
 readMode _   = Nothing
+
+updateScore :: (Score -> Score) -> PlayerState -> PlayerState
+updateScore f (PlayerState score history) = PlayerState (f score) history
 
 getMode :: IO Mode
 getMode = do
@@ -123,23 +131,25 @@ findWinners turn count =
 
 updateState :: GameState -> [Player] -> GameState
 updateState old winners =
-  M.mapWithKey (\p s -> if (p `elem` winners) then s + 1 else s) old
+  M.mapWithKey (\p s -> if p `elem` winners then updateScore (+1) s else s) old
 
 printScore :: Int -> [Player] -> GameState -> IO ()
 printScore count winners gameState =
   let winnerDesc       = intercalate ", " winners
-      scoreDesc (p, s) = show p ++ " -> " ++ show s
+      scoreDesc (p, s) = show p ++ " -> " ++ show (getScore s)
       stateDesc        =
         intercalate ", " (map scoreDesc (M.toList gameState))
-  in
-    putStrLn "\n============================================" >>
-    putStrLn ("All hands show: " ++ show count) >>
-    putStrLn (
-      if null winners then "Nobody scored this turn!"
-      else "Scored this turn: " ++ winnerDesc
-    ) >>
-    putStrLn ("SCORE: " ++ stateDesc) >>
-    putStrLn "==============================================\n"
+      turnDesc         =
+        if null winners then "Nobody scored this turn!"
+        else "Scored this turn: " ++ winnerDesc
+  in do
+    putStrLn ""
+    putStrLn "============================================"
+    putStrLn ("All hands show: " ++ show count)
+    putStrLn turnDesc
+    putStrLn ("SCORE: " ++ stateDesc)
+    putStrLn "=============================================="
+    putStrLn ""
 
 getRetry :: IO Bool
 getRetry = do
@@ -172,14 +182,27 @@ printInterstitial = do
   replicateM_ h (putStrLn ".")
   return ()
 
+getWinner :: GameState -> (Player, Score)
+getWinner gameState =
+  let
+    scoring (_, s1) (_, s2) = compare (getScore s1) (getScore s2)
+  in
+    fmap getScore (maximumBy scoring (M.toList gameState))
+
 printWinner :: GameState -> IO ()
 printWinner gameState = do
-  let (winner, score) =  maximumBy (\(_,s1) (_,s2) -> compare s1 s2) (M.toList gameState)
-  putStrLn (
-    "Aaaaaand the WINNER is... " ++
-    winner ++
-    " with a score of " ++
-    show score)
+  let (winner, score) = getWinner gameState
+  putStrLn $ concat
+    [ "Aaaaaand the WINNER is... "
+    , winner
+    , " with a score of "
+    , show score
+    ]
+
+initialState :: [Player] -> GameState
+initialState ps =
+  M.fromList (fmap (\p -> (p, emptyState)) ps)
+    where emptyState = PlayerState 0 []
 
 main :: IO ()
 main = do
@@ -188,9 +211,8 @@ main = do
 
   p1 <- getPlayer
   p2 <- if mode == Singleplayer then return cpuPlayer else getPlayer
-  
-  let initialState = M.fromList [(p1, 0), (p2, 0)]
-  (_, result) <- runStateT playGame initialState
-  
+
+  (_, result) <- runStateT playGame (initialState [p1, p2])
+
   putStrLn ""
   printWinner result
