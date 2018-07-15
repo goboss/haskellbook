@@ -3,7 +3,7 @@ module Exercises.Transformers.Morra where
 import qualified Data.Map as M
 import           Data.List (intercalate)
 import           Data.Foldable (maximumBy)
-import           Control.Applicative (liftA2)
+import           Data.Traversable (sequence)
 import           Control.Monad (mfilter, when, replicateM_)
 import           Control.Monad.Trans.State
 import           Control.Monad.Trans.Class
@@ -15,7 +15,7 @@ import           Text.Read (readMaybe)
 type Player = String
 type Guess = Int
 type Score = Int
-data Hand = Zero | One | Two | Three | Four | Five
+data Hand = Zero | One | Two | Three | Four | Five deriving Eq
 
 data PlayerState = PlayerState
   { getScore :: Score
@@ -108,19 +108,49 @@ getPlayerMove player = do
   guess <- getGuess
   return (hand, guess)
 
-getCPUMove :: IO Move
-getCPUMove = do
+getCPUMove :: [PlayerState] -> IO Move
+getCPUMove states = do
   putStrLn "Computer prepares his move!\n"
-  let roll = getStdRandom (randomR (0, 5 :: Int))
-  move <- liftA2 (,) (fmap (readHand . show) roll) (fmap (readGuess . show) roll)
-  case move of
-    (Just hand, Just guess) -> return (hand, guess)
-    _                       -> do
-      putStrLn "Computer had made a mistake!\n"
-      return (One, 1)
+  hand <- getRandomHand
+  case getPredictedGuess states of
+    Just guess ->
+      return (hand, guess + handValue hand)
+    Nothing -> do
+      guess <- getRandomGuess states
+      return (hand, guess)
 
-getMove :: Player -> IO Move
-getMove p = if p == cpuPlayer then getCPUMove else getPlayerMove p
+getRandomHand :: IO Hand
+getRandomHand = do 
+  random <- (getStdRandom (randomR (0, 5 :: Int)))
+  case (readHand . show) random of
+    Just hand -> return hand
+    Nothing   -> do
+      putStr "I made a mistake: "
+      print random
+      return One
+
+getRandomGuess :: [PlayerState] -> IO Guess
+getRandomGuess states = getStdRandom (randomR (0, (5 * (length states + 1)) :: Int))
+
+getPredictedGuess :: [PlayerState] -> Maybe Guess
+getPredictedGuess states =
+  sumHandValues (traverse (predict . handValues) states)
+    where handValues :: PlayerState -> [Int]
+          handValues (PlayerState _ hs) = fmap handValue hs
+          predict :: [Int] -> Maybe Int
+          predict (m1:m2:m3:m4:m5:ms) =
+            if m1 == m4 && m2 == m5 then Just m3
+            else predict (m1:m2:m4:m5:ms)
+          predict _ = Nothing
+          sumHandValues :: Maybe [Int] -> Maybe Guess
+          sumHandValues = fmap sum
+
+getMove :: GameState -> Player -> IO Move
+getMove gs p = 
+  if p == cpuPlayer then
+    getCPUMove (M.elems (M.filterWithKey (\k _ -> k /= cpuPlayer) gs))
+  else
+    getPlayerMove p
 
 countHands :: Turn -> Int
 countHands = sum . M.map (handValue . fst)
@@ -166,7 +196,7 @@ getRetry = do
 playGame :: StateT GameState IO ()
 playGame = do
   gameState <- get
-  turn <- lift (sequence  (M.mapWithKey (\p _ -> getMove p) gameState))
+  turn <- lift (sequence  (M.mapWithKey (\p _ -> getMove gameState p) gameState))
   let count = countHands turn
       winners = findWinners turn count
       newState = updateState gameState winners
