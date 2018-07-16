@@ -1,9 +1,12 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Exercises.Transformers.Morra where
 
 import qualified Data.Map as M
 import           Data.List (intercalate)
 import           Data.Foldable (maximumBy)
 import           Data.Traversable (sequence)
+import           Data.Maybe (maybe)
 import           Control.Monad (mfilter, when, replicateM_)
 import           Control.Monad.Trans.State
 import           Control.Monad.Trans.Class
@@ -12,26 +15,41 @@ import           System.Random (getStdRandom, randomR)
 import           System.Console.Terminal.Size (size, height)
 import           Text.Read (readMaybe)
 
-type Player = String
+data Player = Human String | CPU deriving Eq
+
+data Hand = Zero | One | Two | Three | Four | Five deriving (Eq, Show)
 type Guess = Int
 type Score = Int
-data Hand = Zero | One | Two | Three | Four | Five deriving Eq
+
+type Move = (Hand, Guess)
+
+type Turn = M.Map Player Move
 
 data PlayerState = PlayerState
   { getScore :: Score
   , getHistory :: [Hand]
   }
 
-type Move = (Hand, Guess)
-
-type Turn = M.Map Player Move
-
 type GameState = M.Map Player PlayerState
 
 data Mode = Singleplayer | Multiplayer deriving Eq
 
-cpuPlayer :: Player
-cpuPlayer = "#Computer"
+instance Show Player where
+  show CPU = "#CPU"
+  show (Human name) = name
+
+instance Ord Player where
+  compare (Human p1) (Human p2) = compare p1 p2
+  compare _ CPU                 = LT
+  compare CPU _                 = GT
+
+insist :: String -> IO (Maybe a) -> IO a
+insist msg io =
+  io >>= \case
+    Just a -> return a
+    Nothing -> do
+      putStr msg
+      insist msg io
 
 readHand :: String -> Maybe Hand
 readHand "0" = Just Zero
@@ -43,36 +61,20 @@ readHand "5" = Just Five
 readHand _   = Nothing
 
 handValue :: Hand -> Int
-handValue Zero = 0
-handValue One = 1
-handValue Two = 2
+handValue Zero  = 0
+handValue One   = 1
+handValue Two   = 2
 handValue Three = 3
-handValue Four = 4
-handValue Five = 5
-
-validGuess :: Int -> Bool
-validGuess = (>=0)
+handValue Four  = 4
+handValue Five  = 5
 
 readGuess :: String -> Maybe Guess
-readGuess = mfilter validGuess . readMaybe
-
-insist :: String -> IO (Maybe a) -> IO a
-insist msg io =
-  io >>= \ma ->
-    case ma of
-      Just a -> return a
-      Nothing -> do
-        putStr msg
-        insist msg io
-
+readGuess = mfilter (>=0) . readMaybe
 
 readMode :: Char -> Maybe Mode
 readMode 's' = Just Singleplayer
 readMode 'm' = Just Multiplayer
 readMode _   = Nothing
-
-updateScore :: (Score -> Score) -> PlayerState -> PlayerState
-updateScore f (PlayerState score history) = PlayerState (f score) history
 
 getMode :: IO Mode
 getMode = do
@@ -85,8 +87,8 @@ getMode = do
 getPlayer :: IO Player
 getPlayer = do
   putStrLn "Player name: "
-  let ioName = fmap Just getLine
-  insist "Name (different from \"CPU\"): " ioName
+  let ioName = fmap (Just . Human) getLine
+  insist "Name: " ioName
 
 getHand :: IO Hand
 getHand = do
@@ -103,14 +105,14 @@ getGuess = do
 getPlayerMove :: Player -> IO Move
 getPlayerMove player = do
   printInterstitial
-  putStrLn ("Make your move " ++ player ++ "!")
+  putStrLn ("Make your move " ++ show player ++ "!")
   hand  <- getHand
   guess <- getGuess
   return (hand, guess)
 
 getCPUMove :: [PlayerState] -> IO Move
 getCPUMove states = do
-  putStrLn "Computer prepares his move!\n"
+  putStrLn "Computer prepares his move!"
   hand <- getRandomHand
   case getPredictedGuess states of
     Just guess ->
@@ -120,8 +122,8 @@ getCPUMove states = do
       return (hand, guess)
 
 getRandomHand :: IO Hand
-getRandomHand = do 
-  random <- (getStdRandom (randomR (0, 5 :: Int)))
+getRandomHand = do
+  random <- getStdRandom (randomR (0, 5 :: Int))
   case (readHand . show) random of
     Just hand -> return hand
     Nothing   -> do
@@ -146,11 +148,23 @@ getPredictedGuess states =
           sumHandValues = fmap sum
 
 getMove :: GameState -> Player -> IO Move
-getMove gs p = 
-  if p == cpuPlayer then
-    getCPUMove (M.elems (M.filterWithKey (\k _ -> k /= cpuPlayer) gs))
+getMove gs p =
+  if p == CPU then
+    getCPUMove (M.elems (M.filterWithKey (\k _ -> k /= CPU) gs))
   else
     getPlayerMove p
+
+getRetry :: IO Bool
+getRetry = do
+  let msg = "Continue? [yn]"
+  putStrLn msg
+  insist msg readAgreement
+    where readAgreement = do
+            c <- getChar
+            case c of
+              'y' -> return (Just True)
+              'n' -> return (Just False)
+              _   -> return Nothing
 
 countHands :: Turn -> Int
 countHands = sum . M.map (handValue . fst)
@@ -159,13 +173,20 @@ findWinners :: Turn -> Guess -> [Player]
 findWinners turn count =
   M.keys (M.filter (\m -> snd m == count) turn)
 
-updateState :: GameState -> [Player] -> GameState
-updateState old winners =
-  M.mapWithKey (\p s -> if p `elem` winners then updateScore (+1) s else s) old
+updateState :: GameState -> Turn -> [Player] -> GameState
+updateState old turn winners =
+  M.mapWithKey updatePlayer old
+    where updatePlayer player st =
+            let score   = getScore st + if player `elem` winners then 1 else 0
+                move    = fmap fst (M.lookup player turn)
+                history = maybe (getHistory st) (:getHistory st) move
+            in
+                PlayerState score history
+
 
 printScore :: Int -> [Player] -> GameState -> IO ()
 printScore count winners gameState =
-  let winnerDesc       = intercalate ", " winners
+  let winnerDesc       = intercalate ", " (fmap show winners)
       scoreDesc (p, s) = show p ++ " -> " ++ show (getScore s)
       stateDesc        =
         intercalate ", " (map scoreDesc (M.toList gameState))
@@ -181,30 +202,6 @@ printScore count winners gameState =
     putStrLn "=============================================="
     putStrLn ""
 
-getRetry :: IO Bool
-getRetry = do
-  let msg = "Continue? [yn]"
-  putStrLn msg
-  insist msg readAgreement
-    where readAgreement = do
-            c <- getChar
-            case c of
-              'y' -> return (Just True)
-              'n' -> return (Just False)
-              _   -> return Nothing
-
-playGame :: StateT GameState IO ()
-playGame = do
-  gameState <- get
-  turn <- lift (sequence  (M.mapWithKey (\p _ -> getMove gameState p) gameState))
-  let count = countHands turn
-      winners = findWinners turn count
-      newState = updateState gameState winners
-  put newState
-  liftIO (printScore count winners newState)
-  retry <- lift getRetry
-  when retry playGame
-
 printInterstitial :: IO ()
 printInterstitial = do
   maybeWindow <- size
@@ -212,8 +209,20 @@ printInterstitial = do
   replicateM_ h (putStrLn ".")
   return ()
 
-getWinner :: GameState -> (Player, Score)
-getWinner gameState =
+playGame :: StateT GameState IO ()
+playGame = do
+  gameState <- get
+  turn <- lift (sequence (M.mapWithKey (\p _ -> getMove gameState p) gameState))
+  let count = countHands turn
+      winners = findWinners turn count
+      newState = updateState gameState turn winners
+  put newState
+  liftIO (printScore count winners newState)
+  retry <- lift getRetry
+  when retry playGame
+
+theWinner :: GameState -> (Player, Score)
+theWinner gameState =
   let
     scoring (_, s1) (_, s2) = compare (getScore s1) (getScore s2)
   in
@@ -221,10 +230,10 @@ getWinner gameState =
 
 printWinner :: GameState -> IO ()
 printWinner gameState = do
-  let (winner, score) = getWinner gameState
+  let (winner, score) = theWinner gameState
   putStrLn $ concat
     [ "Aaaaaand the WINNER is... "
-    , winner
+    , show winner
     , " with a score of "
     , show score
     ]
@@ -240,7 +249,7 @@ main = do
   putStrLn ""
 
   p1 <- getPlayer
-  p2 <- if mode == Singleplayer then return cpuPlayer else getPlayer
+  p2 <- if mode == Singleplayer then return CPU else getPlayer
 
   (_, result) <- runStateT playGame (initialState [p1, p2])
 
