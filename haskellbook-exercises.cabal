@@ -22,6 +22,7 @@ library
                     , containers
                     , QuickCheck
                     , checkers
+                    , criterion
                     , parsers
                     , random
                     , raw-strings-qq
