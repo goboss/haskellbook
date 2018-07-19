@@ -10,23 +10,28 @@ data Optional a =
   | Only a
   deriving (Eq, Show)
 
+instance Semigroup a => Semigroup (Optional a) where
+  x        <> Nada     = x
+  Nada     <> x        = x
+  (Only x) <> (Only y) = Only (x <> y)
+
+
 instance Monoid a => Monoid (Optional a) where
   mempty = Only (mempty)
-
-  mappend x Nada  = x
-  mappend Nada x = x
-  mappend (Only x) (Only y) = Only (mappend x y)
 
 -- Exercise
 -- Write a Monoid instance for a Maybe type which doesn’t require a Monoid
 -- for the contents.
 newtype First' a = First' { getFirst' :: Optional a } deriving (Eq, Show)
 
+instance Semigroup (First' a) where
+  (<>) f@(First' (Only _)) _ = f
+  (<>) _ other = other
+
+
 instance Monoid (First' a) where
   mempty = First' Nada
-  mappend f@(First' (Only _)) _ = f
-  mappend _ other = other
-
+  
 instance (Arbitrary a) => Arbitrary (First' a) where
   arbitrary = do
     a <- arbitrary

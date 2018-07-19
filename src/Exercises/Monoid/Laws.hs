@@ -1,6 +1,5 @@
 module Exercises.Monoid.Laws where
 
-import Data.Monoid
 import qualified Data.Semigroup as S
 
 monoidAssoc :: (Eq m, Monoid m) => m -> m -> m -> Bool

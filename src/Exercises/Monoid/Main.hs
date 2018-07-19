@@ -192,16 +192,18 @@ newtype Mem s a =
     runMem :: s -> (a,s)
   }
 
-instance Monoid a => Monoid (Mem s a) where
-  mempty = Mem (\s -> (mempty, s))
-  mappend (Mem f) (Mem g) =
+instance Semigroup a => Semigroup (Mem s a) where
+  (Mem f) <> (Mem g) =
     Mem (\s ->
       let
         (a1, s1) = f s
         (a2, s2) = g s1
       in
-        (mappend a1 a2, s2)
+        (a1 <> a2, s2)
     )
+
+instance Monoid a => Monoid (Mem s a) where
+  mempty = Mem (\s -> (mempty, s))
 
 main :: IO ()
 main = do
