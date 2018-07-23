@@ -23,6 +23,7 @@ library
                     , QuickCheck
                     , checkers
                     , criterion
+                    , dlist
                     , parsers
                     , random
                     , raw-strings-qq
