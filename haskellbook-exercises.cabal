@@ -31,6 +31,7 @@ library
                     , text
                     , transformers
                     , trifecta
+                    , vector
   hs-source-dirs:     src
   ghc-options:        -Wall -fwarn-tabs
   default-language:   Haskell2010
