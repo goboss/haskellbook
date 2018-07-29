@@ -37,6 +37,13 @@ library
   ghc-options:        -Wall -fwarn-tabs
   default-language:   Haskell2010
 
+executable vigenere
+  hs-source-dirs:     app/Vigenere
+  main-is:            Main.hs
+  build-depends:      base >=4.10 && <5
+                    , haskellbook-exercises
+  default-language:   Haskell2010
+
 test-suite unit-tests
   ghc-options:        -Wall -fno-warn-orphans
   type:               exitcode-stdio-1.0
