@@ -79,7 +79,7 @@ drainList xs =
   head xs `seq` drainList (tail xs)
 
 drainSeq :: Seq a -> Maybe a
-drainSeq Empty         = Nothing
+drainSeq Empty = Nothing
 drainSeq s =
   Seq.take 1 s `seq` drainSeq (Seq.drop 1 s)
 

@@ -2,17 +2,17 @@ module Main where
 
 import System.Environment (getArgs)
 import System.IO
+import System.Exit
 import Exercises.Lists.Cipher
 
 data Mode = Encrypt Keyword | Decrypt Keyword
 
 getMode :: IO (Maybe Mode)
-getMode = do
-  args <- getArgs
-  return (readMode args)
+getMode =
+  readMode <$> getArgs
     where readMode ["-d", key] = Just (Decrypt key)
           readMode ["-e", key] = Just (Encrypt key)
-          readMode _           = Nothing 
+          readMode _           = Nothing
 
 printUsage :: IO ()
 printUsage = putStrLn $ concat
@@ -20,13 +20,29 @@ printUsage = putStrLn $ concat
   , "Where -d means decrypt and -e encrypt"
   ]
 
+interactImpatiently :: Int -> (String -> String) -> IO ()
+interactImpatiently t f = do
+  input <- hWaitForInput stdin t
+  if input then do
+    eof <- isEOF
+    if eof then
+      exitSuccess
+    else do
+      c <- getChar
+      putStr (f [c])
+      interactImpatiently t f
+  else do
+    hPutStrLn stderr "This takes too long. Let's bail before the cops show up!"
+    exitFailure
+
+patience :: Int
+patience = 5000 -- 5 seconds
+
 decrypt :: Keyword -> IO ()
-decrypt key = interact go
-  where go = vigenere key
+decrypt key = interactImpatiently patience (vigenere key)
 
 encrypt :: Keyword -> IO ()
-encrypt key = interact go
-  where go = unVigenere key
+encrypt key = interactImpatiently patience (unVigenere key)
 
 run :: Mode -> IO ()
 run (Decrypt key) = decrypt key
