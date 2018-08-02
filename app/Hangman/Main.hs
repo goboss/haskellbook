@@ -4,8 +4,8 @@ import Control.Monad (forever)
 import Data.Char (toLower, isAlpha)
 import System.Random
 
-import Puzzle
-import Game
+import Exercises.Hangman.Puzzle
+import Exercises.Hangman.Game
 
 main :: IO ()
 main = do
@@ -18,7 +18,7 @@ newtype WordList = WordList [String]
 
 allWords :: IO WordList
 allWords = do
-  dict <- readFile "data/dict.txt"
+  dict <- readFile "app/Hangman/data/dict.txt"
   return $ WordList (lines dict)
 
 minWordLength :: Int
@@ -34,7 +34,7 @@ gameWords = do
   where gameLength w =
           let l = length (w :: String)
           in l >= minWordLength && l < maxWordLength
-        wordType w = all isAlpha w
+        wordType = all isAlpha
 
 
 randomWord :: WordList -> IO String

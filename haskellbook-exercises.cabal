@@ -18,6 +18,8 @@ library
                     , Exercises.Monoid.Optional
                     , Exercises.Recursion.Main
                     , Exercises.Recursion.WordNumber
+                    , Exercises.Hangman.Puzzle
+                    , Exercises.Hangman.Game
   build-depends:      base >=4.10 && <5
                     , containers
                     , QuickCheck
@@ -44,6 +46,15 @@ executable vigenere
                     , haskellbook-exercises
   default-language:   Haskell2010
 
+executable hangman
+  hs-source-dirs:     app/Hangman
+  main-is:            Main.hs
+  default-language:   Haskell2010
+  build-depends:      base >= 4.7 && < 5
+                    , haskellbook-exercises
+                    , random
+                    , split
+
 test-suite unit-tests
   ghc-options:        -Wall -fno-warn-orphans
   type:               exitcode-stdio-1.0
@@ -52,6 +63,7 @@ test-suite unit-tests
                     , Exercises.Lists.CipherSpec
                     , Exercises.Testing.IdempotenceSpec
                     , Exercises.Testing.QuickCheckSpec
+                    , Hangman.PuzzleSpec
   hs-source-dirs:     test
   default-language:   Haskell2010
   build-depends:      base >=4.7 && <5

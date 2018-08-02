@@ -15,7 +15,7 @@ spec = do
     it "encodes a message using the same number of characters" $ property $
       \(ASCIIString x) n -> length (caesar n x) == length x
 
-    it "encodes a known message correcly" $ do
+    it "encodes a known message correcly" $
       caesar 3 "meet at dawn" `shouldBe` "phhw dw gdzq"
 
     it "is reversible" $ property $
@@ -29,7 +29,7 @@ spec = do
     it "encodes a message using the same number of characters" $ property $
       \(ASCIIString x) (Keyword k) -> length (vigenere k x) == length x
 
-    it "encodes a known message correctly" $ do
+    it "encodes a known message correctly" $
       vigenere "AZF" "the bird is in the cage" `shouldBe` "tgj bhwd hx im yhd hafj"
 
     it "is reversible" $ property $
@@ -38,4 +38,4 @@ spec = do
 newtype VigenereKeyword = Keyword String deriving Show
 
 instance Arbitrary VigenereKeyword where
-  arbitrary = fmap Keyword $ listOf1 (elements ['A'..'Z'])
+  arbitrary = Keyword <$> listOf1 (elements ['A'..'Z'])

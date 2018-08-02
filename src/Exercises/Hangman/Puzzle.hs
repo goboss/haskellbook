@@ -1,4 +1,4 @@
-module Puzzle where
+module Exercises.Hangman.Puzzle where
 
 import Data.List (intersperse)
 

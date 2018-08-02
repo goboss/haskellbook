@@ -1,10 +1,10 @@
-module Game where
+module Exercises.Hangman.Game where
 
 import Control.Monad (forever)
 import Data.Maybe (isJust, isNothing)
 import System.Exit (exitSuccess)
 
-import Puzzle
+import Exercises.Hangman.Puzzle
 
 gameOver :: Puzzle -> IO ()
 gameOver (Puzzle wordToGuess filledInSoFar _ attempts) =

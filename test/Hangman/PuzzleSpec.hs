@@ -1,12 +1,12 @@
-module Main where
+module Hangman.PuzzleSpec where
 
 import Test.Hspec
 import Test.QuickCheck
 
-import Puzzle
+import Exercises.Hangman.Puzzle
 
-main :: IO ()
-main = hspec $ do
+spec :: Spec
+spec = do
   describe "fillInCharacter" $ do
     it "adds wrong guess" $ do
       let Puzzle _ _ guesses attempts = fillInCharacter testPuzzle 'x'
