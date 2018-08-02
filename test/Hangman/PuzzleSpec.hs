@@ -1,7 +1,6 @@
 module Hangman.PuzzleSpec where
 
 import Test.Hspec
-import Test.QuickCheck
 
 import Exercises.Hangman.Puzzle
 
