@@ -38,16 +38,29 @@ instance ToRow User where
 
 createUsers :: Query
 createUsers = [r|
-CREATE TABLE IF NOT EXISTS users
-  ( username TEXT UNIQUE,
-    shell TEXT, homeDirectory TEXT,
-    realName TEXT, phone TEXT)
+  CREATE TABLE IF NOT EXISTS users (
+    username TEXT UNIQUE,
+    shell TEXT, 
+    homeDirectory TEXT,
+    realName TEXT,
+    phone TEXT
+  )
 |]
 
 insertUser :: Query
 insertUser =
   "INSERT INTO users\
   \ VALUES (?, ?, ?, ?, ?)"
+
+updateUser :: Query
+updateUser = [r|
+  UPDATE users 
+  SET username = ?, shell = ?, homeDirectory = ?, realName = ?, phone = ?
+  WHERE username = ?
+|]
+
+deleteUser :: Query
+deleteUser = "DELETE FROM users WHERE username = ?"
 
 allUsers :: Query
 allUsers =
