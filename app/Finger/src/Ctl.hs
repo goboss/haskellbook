@@ -93,14 +93,14 @@ userUpdateParser =
 
 cmdParser :: Parser Cmd
 cmdParser = subparser 
-  ( command "useradd" (info (addParse <**> helper) addInfo)
- <> command "usermod" (info (modParse <**> helper) modInfo)
- <> command "userdel" (info (delParse <**> helper) delInfo)
+  ( command "useradd" (info addParse addInfo)
+ <> command "usermod" (info modParse modInfo)
+ <> command "userdel" (info delParse delInfo)
   )
   where
     addParse = UserAdd <$> userParser
-    addInfo = 
-         fullDesc 
+    addInfo =
+         fullDesc
       <> progDesc "Add new user to finger service" 
       <> header "fingerctl useradd - add user to finger"
     
@@ -174,4 +174,4 @@ programInfo =
   )
 
 main :: IO ()
-main = process =<< execParser programInfo
+main = process =<< customExecParser (prefs showHelpOnEmpty) programInfo
