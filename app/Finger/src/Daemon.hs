@@ -4,10 +4,12 @@ module Main where
 
 import Lib
 
+import Control.Concurrent (forkIO)
 import Control.Monad (forever)
 import Data.List (intersperse)
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.ByteString as S
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 
 import Database.SQLite.Simple hiding (close)
@@ -37,6 +39,21 @@ returnUser dbConn soc name = do
     Just user ->
       sendAll soc (formatUser user)
 
+type Port = Int
+
+withBoundSocket :: Port -> (Socket -> IO a) -> IO a
+withBoundSocket p f =
+  withSocketsDo $ do
+    addrinfos <- getAddrInfo
+                  (Just (defaultHints {addrFlags = [AI_PASSIVE]}))
+                  Nothing 
+                  (Just (show p))
+    let serveraddr = head addrinfos
+    sock <- socket (addrFamily serveraddr)
+                    Stream defaultProtocol
+    Network.Socket.bind sock (addrAddress serveraddr)
+    f sock
+
 handleQuery :: Connection -> Socket -> IO ()
 handleQuery dbConn soc = do
   msg <- recv soc 1024
@@ -53,16 +70,36 @@ handleQueries dbConn sock = forever $ do
   handleQuery dbConn soc
   close soc
 
+handleControlMsg :: Socket -> IO ()
+handleControlMsg sock = do
+  msg <- readMsg []
+  putStrLn "Received:"
+  putStrLn (T.unpack (decodeUtf8 msg)) -- TODO: decode msg into Cmd as in the cli interface
+    where 
+      readMsg acc = do
+        buf <- recv sock 1024
+        if S.null buf then
+          return $ S.concat (reverse acc) -- TODO: use Sequence
+        else
+          readMsg (buf : acc)
+
+handleControl :: Socket -> IO ()
+handleControl sock = forever $ do
+  (inSock, _) <- accept sock
+  putStrLn "Connection on control socket accepted"
+  handleControlMsg inSock
+  close inSock
+
+control :: IO ()
+control = withBoundSocket 8080 $ \sock -> do
+  listen sock 1
+  handleControl sock
+  close sock
+
 main :: IO ()
-main = withSocketsDo $ do
-  addrinfos <- getAddrInfo
-                (Just (defaultHints
-                {addrFlags = [AI_PASSIVE]}))
-                Nothing (Just "79")
-  let serveraddr = head addrinfos
-  sock <- socket (addrFamily serveraddr)
-          Stream defaultProtocol
-  Network.Socket.bind sock (addrAddress serveraddr)
+main = withBoundSocket 79 $ \sock -> do
+  putStrLn "Server is ready to accept connections"
+  forkIO control
   listen sock 1
   -- only one connection open at a time
   conn <- open "finger.db"
