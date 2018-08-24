@@ -40,9 +40,11 @@ executable fingerd
                      , bytestring
                      , finger
                      , network
+                     , parsers
                      , raw-strings-qq
                      , sqlite-simple
                      , text
+                     , trifecta
                      
 executable fingerctl
   ghc-options:         -Wall

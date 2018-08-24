@@ -2,20 +2,26 @@
 
 module Main where
 
-import Lib
+import           Lib
 
-import Control.Concurrent (forkIO)
-import Control.Monad (forever)
-import Data.List (intersperse)
-import Data.Text (Text)
-import qualified Data.Text as T
+import           Control.Applicative
+import           Control.Concurrent (forkIO)
+import           Control.Monad (forever)
+
+import           Data.ByteString (ByteString)
 import qualified Data.ByteString as S
-import Data.Text.Encoding (decodeUtf8, encodeUtf8)
+import           Data.List (intersperse)
+import           Data.Text (Text)
+import qualified Data.Text as T
+import           Data.Text.Encoding (decodeUtf8, encodeUtf8)
 
-import Database.SQLite.Simple hiding (close)
+import           Database.SQLite.Simple hiding (close)
 import qualified Database.SQLite.Simple as SQLite
-import Network.Socket hiding (recv)
-import Network.Socket.ByteString (recv, sendAll)
+
+import           Network.Socket hiding (recv)
+import           Network.Socket.ByteString (recv, sendAll)
+
+import           Text.Trifecta
 
 returnUsers :: Connection -> Socket -> IO ()
 returnUsers dbConn soc = do
@@ -46,7 +52,7 @@ withBoundSocket p f =
   withSocketsDo $ do
     addrinfos <- getAddrInfo
                   (Just (defaultHints {addrFlags = [AI_PASSIVE]}))
-                  Nothing 
+                  Nothing
                   (Just (show p))
     let serveraddr = head addrinfos
     sock <- socket (addrFamily serveraddr)
@@ -73,15 +79,44 @@ handleQueries dbConn sock = forever $ do
 handleControlMsg :: Socket -> IO ()
 handleControlMsg sock = do
   msg <- readMsg []
-  putStrLn "Received:"
-  putStrLn (T.unpack (decodeUtf8 msg)) -- TODO: decode msg into Cmd as in the cli interface
-    where 
+  putStrLn "Received control message"
+  let result = parseByteString parseMsg mempty msg
+  case result of
+    (Success cmd) -> print cmd
+    (Failure inf) -> print inf  
+    where
+      readMsg :: [ByteString] -> IO ByteString
       readMsg acc = do
         buf <- recv sock 1024
         if S.null buf then
           return $ S.concat (reverse acc) -- TODO: use Sequence
         else
           readMsg (buf : acc)
+      parseMsg :: Parser Cmd
+      parseMsg = 
+            (UserAdd <$> try parseUser) 
+        <|> (UserMod <$> try parseUserName <*> try parseUserUpdate) 
+        <|> (UserDel <$> parseUserName)
+      parseHeader :: String -> Parser Text
+      parseHeader n =
+        T.pack <$> (token (string (n ++ ":")) >> manyTill anyChar (char '\n'))
+      parseUser :: Parser User
+      parseUser =
+            User 
+        <$> parseHeader "Name"
+        <*> parseHeader "Shell"
+        <*> parseHeader "Home"
+        <*> parseHeader "RealName"
+        <*> parseHeader "Phone"
+      parseUserUpdate :: Parser UserUpdate
+      parseUserUpdate =
+            UserUpdate 
+        <$> optional (parseHeader "Shell")
+        <*> optional (parseHeader "Home")
+        <*> optional (parseHeader "RealName")
+        <*> optional (parseHeader "Phone")
+      parseUserName :: Parser Text
+      parseUserName = parseHeader "Name"
 
 handleControl :: Socket -> IO ()
 handleControl sock = forever $ do
@@ -99,7 +134,7 @@ control = withBoundSocket 8080 $ \sock -> do
 main :: IO ()
 main = withBoundSocket 79 $ \sock -> do
   putStrLn "Server is ready to accept connections"
-  forkIO control
+  _ <- forkIO control
   listen sock 1
   -- only one connection open at a time
   conn <- open "finger.db"
