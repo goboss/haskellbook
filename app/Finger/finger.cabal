@@ -11,16 +11,20 @@ cabal-version:       >=1.10
 extra-source-files:  README.md
 
 library
-  exposed-modules:     Lib
+  exposed-modules:     Finger.User
+                     , Finger.DaemonParser
+                     , Finger.CtlParser
   ghc-options:         -Wall
-  hs-source-dirs:      src
+  hs-source-dirs:      src/Lib
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                      , bytestring
                      , network
+                     , optparse-applicative
                      , raw-strings-qq
                      , sqlite-simple
                      , text
+                     , trifecta
 
 executable debug
   ghc-options:         -Wall
@@ -35,7 +39,6 @@ executable fingerd
   main-is:             Daemon.hs
   default-language:    Haskell2010
   ghc-options:         -Wall
-  other-modules:       Lib
   build-depends:       base >= 4.7 && < 5
                      , bytestring
                      , containers
@@ -52,7 +55,6 @@ executable fingerctl
   hs-source-dirs:      src
   main-is:             Ctl.hs
   default-language:    Haskell2010
-  other-modules:       Lib
   build-depends:       base >= 4.7 && < 5
                      , bytestring
                      , finger
@@ -60,3 +62,18 @@ executable fingerctl
                      , raw-strings-qq
                      , sqlite-simple
                      , text
+
+test-suite unit-tests
+  ghc-options:        -Wall -fno-warn-orphans
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
+  main-is:            Spec.hs
+  default-language:   Haskell2010
+  other-modules:      DaemonSpec
+  build-depends:      base >=4.7 && <5
+                    , finger
+                    , hspec
+                    , hspec-discover
+                    , QuickCheck
+                    , text
+                    , trifecta

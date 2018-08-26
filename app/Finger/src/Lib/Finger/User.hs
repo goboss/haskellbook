@@ -2,7 +2,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Lib where
+module Finger.User where
 
 import           Control.Exception
 
@@ -42,7 +42,7 @@ data Cmd =
     UserAdd User
   | UserMod UserName UserUpdate
   | UserDel UserName
-  deriving Show
+  deriving (Eq, Show)
   
 instance FromRow User where
   fromRow = User 
@@ -170,4 +170,11 @@ userMod name update = withDb(\conn -> do
                 )
           execute conn updateUser row
           putStrLn ("User " ++ T.unpack username ++ " has been updated")
-  
+
+executeCommand :: Cmd -> IO ()
+executeCommand cmd =
+  case cmd of
+    UserAdd user   -> userAdd user
+    UserMod n upd  -> userMod n upd
+    UserDel n      -> userDel n
+          

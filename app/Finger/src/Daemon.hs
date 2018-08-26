@@ -2,15 +2,15 @@
 
 module Main where
 
-import           Lib
+import           Finger.User
+import           Finger.DaemonParser
 
-import           Control.Applicative
 import           Control.Concurrent (forkIO)
 import           Control.Monad (forever)
 
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as S
-import           Data.List (intersperse, intercalate, lookup, (\\))
+import           Data.List (intersperse)
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Text.Encoding (decodeUtf8, encodeUtf8)
@@ -80,10 +80,12 @@ handleControlMsg :: Socket -> IO ()
 handleControlMsg sock = do
   msg <- readMsg []
   putStrLn "Received control message"
-  let result = parseByteString parseMsg mempty msg
-  case result of
-    (Success cmd) -> print cmd
-    (Failure inf) -> print inf
+  case parseByteString cmdParser mempty msg of
+    (Success cmd) -> do
+      putStrLn ("Command parsed: " ++ show cmd)
+      executeCommand cmd
+    (Failure inf) ->
+      putStrLn ("Error parsing command: " ++ show inf)
     where
       readMsg :: [ByteString] -> IO ByteString
       readMsg acc = do
@@ -92,59 +94,6 @@ handleControlMsg sock = do
           return $ S.concat (reverse acc) -- TODO: use Sequence
         else
           readMsg (buf : acc)
-
-      parseMsg :: Parser Cmd
-      parseMsg =
-            (UserAdd <$> try parseUser)
-        <|> (UserMod <$> try parseUserName <*> try parseUserUpdate)
-        <|> (UserDel <$> parseUserName)
-
-      parseHeader :: String -> Parser (String, Text)
-      parseHeader name =
-         fmap (\value -> (name, T.pack value))
-              (token (string (name ++ ":")) >> manyTill anyChar (char '\n'))
-
-      userHeaders :: [String]
-      userHeaders = ["Name" , "Shell" , "Home", "RealName", "Phone"]
-
-      parseUserHeaders :: Parser [(String, Text)]
-      parseUserHeaders = traverse parseHeader userHeaders
-
-      parseUser :: Parser User
-      parseUser =
-        let
-          userFromHeaders hs =
-            User
-            <$> lookup "Name" hs
-            <*> lookup "Shell" hs
-            <*> lookup "Home" hs
-            <*> lookup "RealName" hs
-            <*> lookup "Phone" hs
-        in do
-          hdr <- parseUserHeaders
-          case userFromHeaders hdr of
-            (Just user) ->
-              return user
-            Nothing     ->
-              fail $ concat
-                [ "Missing headers for User: "
-                , intercalate ", " (userHeaders \\ fmap fst hdr)
-                ]
-
-      parseUserUpdate :: Parser UserUpdate
-      parseUserUpdate =
-        let
-          userUpdateFromHeaders hs =
-            UserUpdate
-            (lookup "Shell" hs)
-            (lookup "Home" hs)
-            (lookup "RealName" hs)
-            (lookup "Phone" hs)
-        in
-          fmap userUpdateFromHeaders parseUserHeaders
-
-      parseUserName :: Parser Text
-      parseUserName = snd <$> parseHeader "Name"
 
 handleControl :: Socket -> IO ()
 handleControl sock = forever $ do
