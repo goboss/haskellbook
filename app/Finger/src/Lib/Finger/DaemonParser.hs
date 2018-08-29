@@ -13,25 +13,22 @@ import qualified Data.Text as T
 
 import           Text.Trifecta
 
+ichar :: Char -> Parser Char
+ichar c   = char (toLower c) <|> char (toUpper c)
+
+istring :: String -> Parser String
+istring s = s <$ try (traverse_ ichar s) <?> show s
+
 headerParser :: String -> Parser (String, Text)
 headerParser name =
     fmap (\value -> (name, T.strip (T.pack value)))
         (istring (name ++ ":") >> manyTill anyChar (char '\n'))
-    where
-      ichar c   = char (toLower c) <|> char (toUpper c)
-      istring s = s <$ try (traverse_ ichar s) <?> show s
-
-userNameParser :: Parser Text
-userNameParser = snd <$> headerParser "Name"
-
-cmdParser :: Parser Cmd
-cmdParser =
-      (try (string "USERADD\n") >> (UserAdd <$> userParser))
-  <|> (try (string "USERMOD\n") >> (UserMod <$> userNameParser <*> userUpdateParser))
-  <|> (try (string "USERDEL\n") >> (UserDel <$> userNameParser))
 
 userHeaders :: [String]
 userHeaders = ["Name" , "Shell" , "Home", "RealName", "Phone"]
+
+userNameParser :: Parser Text
+userNameParser = snd <$> headerParser "Name"
 
 userParser :: Parser User
 userParser =
@@ -49,10 +46,9 @@ userParser =
       (Just user) ->
         return user
       Nothing     ->
-        fail $ concat
-          [ "Missing headers for User: "
-          , intercalate ", " (userHeaders \\ fmap fst hdr)
-          ]
+        fail $ 
+          "Missing headers for User: " ++ 
+          intercalate ", " (userHeaders \\ fmap fst hdr)
 
 userUpdateParser :: Parser UserUpdate
 userUpdateParser =
@@ -66,3 +62,9 @@ userUpdateParser =
   in do
     hdr <- catMaybes <$> traverse (optional . headerParser) userHeaders
     return (userUpdateFromHeaders hdr)
+
+cmdParser :: Parser Cmd
+cmdParser =
+      (try (istring "USERADD\n") >> (UserAdd <$> userParser))
+  <|> (try (istring "USERMOD\n") >> (UserMod <$> userNameParser <*> userUpdateParser))
+  <|> (try (istring "USERDEL\n") >> (UserDel <$> userNameParser))
