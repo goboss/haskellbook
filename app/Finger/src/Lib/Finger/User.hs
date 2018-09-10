@@ -14,7 +14,7 @@ import           Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text as T
 import           Data.Typeable
 
-import           Database.SQLite.Simple hiding (close)
+import           Database.SQLite.Simple
 import qualified Database.SQLite.Simple as SQLite
 
 import           Text.RawString.QQ

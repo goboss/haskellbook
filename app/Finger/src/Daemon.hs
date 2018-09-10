@@ -79,7 +79,8 @@ handleQueries dbConn sock = forever $ do
 handleControlMsg :: Socket -> IO ()
 handleControlMsg sock = do
   msg <- readMsg []
-  putStrLn "Received control message"
+  putStrLn "Received control message:"
+  putStrLn (T.unpack (decodeUtf8 msg))
   case parseByteString cmdParser mempty msg of
     (Success cmd) -> do
       putStrLn ("Command parsed: " ++ show cmd)

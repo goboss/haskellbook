@@ -1,4 +1,4 @@
-module Finger.CtlParser where
+module Finger.CtlParser(cmdParser) where
 
 import Finger.User
 
